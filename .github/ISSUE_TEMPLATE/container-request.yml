@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Easiest: fill in the [Container Builder](https://rfberlin.github.io/guide/), which opens this form for you.
+        Easiest: fill in the Container Builder on the internal RF Berlin site, which opens this form for you.
         Before requesting, make sure your image has been built and pushed to Docker Hub (green check in your repository's Actions tab).
   - type: input
     id: name
