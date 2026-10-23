@@ -2,7 +2,7 @@
 
 RF Berlin runs GPU servers for scientific computing that are shared by many researchers. Each researcher works in their **own Docker container**, so nobody can break anyone else's setup, and every environment is documented in a GitHub repository. That makes it easy to share and reproduce, for example for peer review.
 
-> **Fastest way in: the [Container Builder](https://rfberlin.github.io/guide/).**
+> **Fastest way in: the Container Builder** on the internal RF Berlin site (`http://<HPC server>/`; ask your admin for the address).
 > Fill in a form and download a ready-made project. Then push it and request your container with one click. The steps below explain the same process in detail.
 
 ---
@@ -52,7 +52,7 @@ cat ~/.ssh/id_ed25519.pub
 
 ## Step 2 – Generate your project
 
-Open the **[Container Builder](https://rfberlin.github.io/guide/)** and fill in:
+Open the **Container Builder** on the internal site and fill in:
 
 - **Container name**, e.g. `jdoe-thesis`, and your **Docker Hub username**.
 - **Server**: see the table above.
