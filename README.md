@@ -1,105 +1,181 @@
-# Introduction
-The **RFHPCManager** is a minimalistic approach to managing a high-performance computer (GPU server) for scientific computing work by multiple researchers. The goal of the manager is to ensure two key points:
+# RF Berlin HPC guide
 
-1. Researchers do not accidentally break or introduce software that could disrupt other researchers’ work by installing incompatible software on the server.  
-2. There is sufficient documentation to simplify sharing of data and virtual instances for peer review, making the process easier and more traceable.
+RF Berlin runs GPU servers for scientific computing that are shared by many researchers. Each researcher works in their **own Docker container**, so nobody can break anyone else's setup, and every environment is documented in a GitHub repository. That makes it easy to share and reproduce, for example for peer review.
 
-This system is based on **Docker** and **Docker Compose**, which you can learn more about here: [https://www.docker.com/](https://www.docker.com/).
-
----
-
-## Prerequisites
-This guide assumes you have the following:
-
-1. A **GitHub** account and the ability to create a private GitHub repository for your code.  
-2. A **Docker** account.
+> **Fastest way in: the [Container Builder](https://rfberlin.github.io/guide/).**
+> Fill in a form and download a ready-made project. Then push it and request your container with one click. The steps below explain the same process in detail.
 
 ---
 
-## Step 1 – Clone the demo project
-On your computer, open a command prompt (or terminal) and run:
-```bash
-git clone https://github.com/RFBerlin/DemoProject.git
+## The servers
+
+| Server | GPUs | CPU | Memory |
+|---|---|---|---|
+| **RFBerlin-HPC01** | 2x NVIDIA RTX A6000 (48 GB each) | 112 threads | 125 GB |
+| **dsserver02** | 1x NVIDIA RTX PRO 6000 Blackwell (96 GB) | 128 threads | 1 TB |
+
+You can't install software on the servers directly. Your container is your own Ubuntu machine: you have `sudo` inside it, you can `pip install` and `apt install`, and you log in with SSH.
+
+## How it works
+
+```
+your GitHub repo ──push──▶ GitHub Actions builds the image ──▶ Docker Hub ──▶ your container on the server
+ (Dockerfile,                                                                  (updates automatically
+  requirements.txt)                                                             ~5 min after each push)
 ```
 
-## Step 2 remove .git folder 
-navigate to the folder of the DemoProject and delete the hidden directory .git
-![alt text](image-1.png)
+1. Your environment (packages, tools, SSH key) is described in a small GitHub repository that you own.
+2. Every push to `main` builds a Docker image and publishes it to your Docker Hub account.
+3. The server runs a container from that image and picks up new versions automatically.
 
-## Step 3 rename folder 
-Rename the folder **DemoProject** to ["your project name"] 
-[!note]
->I will keep the proejct name DemoProject
+## What you need
 
-## Step 4 create a github project in your own githup repo
+- A **GitHub** account (you will create a private repository).
+- A **Docker Hub** account: [sign up for free](https://app.docker.com/signup).
+- An **SSH key** (see step 1).
 
-On your private github site, create a new project
-![alt text](image-2.png)
+---
 
-Once the project has been created you can open a cmd in yourDemoProject  and run the following commands
+## Step 1 – Create an SSH key
+
+You log in to your container with an SSH key; there are no passwords. Open a terminal (Windows: *PowerShell*, macOS/Linux: *Terminal*) and run:
+
+```bash
+ssh-keygen -t ed25519 -C "your_email@example.com"
+```
+
+Press Enter to accept the defaults. Your **public** key is now in `~/.ssh/id_ed25519.pub`. Only ever share that `.pub` file. The file without `.pub` is your private key and stays on your computer.
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+## Step 2 – Generate your project
+
+Open the **[Container Builder](https://rfberlin.github.io/guide/)** and fill in:
+
+- **Container name**, e.g. `jdoe-thesis`, and your **Docker Hub username**.
+- **Server**: see the table above.
+- **Software**: *Python + CUDA* if you want to use a GPU, otherwise *Python (CPU only)*. Tick **PyTorch** if you need it, and list your Python packages.
+- **Resources**: GPU and memory limit.
+- **SSH key**: paste the contents of your `.pub` file.
+
+Click **Download project (.zip)** and unzip it. You get:
+
+| File | What it's for |
+|---|---|
+| `Dockerfile` | The environment. Add system packages here. |
+| `requirements.txt` | Python packages, one per line. |
+| `authorized_keys` | SSH public keys allowed to log in, one per line. Add a co-author's key to give them access. |
+| `start.sh` | Starts the SSH server inside the container. |
+| `.github/workflows/docker-publish.yml` | Builds the image and pushes it to Docker Hub on every push. |
+
+<details>
+<summary>Prefer to start by hand? Use the DemoProject template instead.</summary>
+
+```bash
+git clone https://github.com/RFBerlin/DemoProject.git my-project
+cd my-project && rm -rf .git
+```
+
+Then replace `id_rsa.pub` with your public key, edit `requirements.txt`, and change the image name `leifhh/demouser` in `.github/workflows/main.yml` to `<your-dockerhub-user>/<image>`.
+</details>
+
+## Step 3 – Push it to a private GitHub repository
+
+Create a new **private** repository on GitHub, for example named after your container:
+
+![Create a new GitHub repository](image-2.png)
+
+Then, in the unzipped folder:
 
 ```bash
 git init
-git add.
-git commit -m "initial commit"
-git remote add origin HTTPS://github.com/USERNAME/REPONAME.git
+git add .
+git commit -m "Initial environment"
+git branch -M main
+git remote add origin https://github.com/USERNAME/REPONAME.git
 git push -u origin main
+```
+
+## Step 4 – Let GitHub publish to Docker Hub
+
+GitHub needs permission to push images to your Docker Hub account.
+
+**Create a Docker Hub access token.** Log in to Docker Hub, open your profile in the top-right corner and go to **Account settings**:
+
+![Docker Hub profile menu](image-4.png)
+
+![Account settings](image-5.png)
+
+Go to **Personal access tokens** and click **Generate new token**:
+
+![Personal access tokens](image-6.png)
+
+Give it **Read & Write** access and copy the token:
+
+![Token permissions](image-7.png)
+
+**Add the token to your GitHub repository.** Go to **Settings** → **Secrets and variables** → **Actions**:
+
+![Repository settings](image-8.png)
+
+![Secrets and variables → Actions](image-9.png)
+
+Create two **repository secrets**:
+
+| Name | Value |
+|---|---|
+| `DOCKER_USERNAME` | your Docker Hub username |
+| `DOCKER_PASSWORD` | the access token you just created |
+
+![Repository secrets](image-10.png)
+
+## Step 5 – Check the build
+
+Open the **Actions** tab of your repository. The *Build and publish image* run must finish with a green check. If it ran before you added the secrets, open it and click **Re-run jobs**. The first build can take 5–15 minutes, longer with PyTorch.
+
+> Images on a free Docker Hub account are **public**. Never put data, passwords or private keys in the repository. Put them in `/home/ubuntu/work` on the server instead.
+
+## Step 6 – Request your container
+
+Click **Request container** in the Container Builder. It opens a pre-filled [container request](https://github.com/RFBerlin/guide/issues/new?template=container-request.yml) here, so just press **Create**. When the container is running, you'll get your **port number** and the server address in that issue.
+
+## Step 7 – Connect
+
+```bash
+ssh -p <port> ubuntu@<server address>
+```
+
+You are user `ubuntu` with `sudo` rights. Your Python environment is active automatically, and `nvidia-smi` shows your GPU if you requested one.
+
+**VS Code:** install the *Remote - SSH* extension and add this to `~/.ssh/config`. Then choose *Remote-SSH: Connect to Host…* → `my-container`.
 
 ```
- ## Step 5 Creating your own rsa key
- In order for you to access your own docker container, you need to generae a keyset and include the public part in your github repo
- the command to run to generate a ssh key could be 
- ```bash
- ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
- ```
+Host my-container
+    HostName <server address>
+    Port <port>
+    User ubuntu
+```
 
- ## Step 6 Replace the public key in github repo with newly created repo
- ![alt text](image-3.png)
+---
 
- ## Docker and Docker Secret
- Docker and docker hub is a place where prebuild images can be stored and versioned.
- The images can also be shared which is the feature that we will use when images are build in a private github repo, and then shared.
- in order to do this you need to have a docker account and create a secret to be used in your github project. 
- the following assumes that you have a docker account
+## Working in your container
 
- ## Step 7 Create Docker Secrets
-Login to docker.com and click on your profile in the right corner 
-![alt text](image-4.png)
+- **Keep everything in `/home/ubuntu/work`.** It is stored on the server and survives restarts and updates. Everything else is reset when the container is updated.
+- **Changing your environment:** edit `requirements.txt` or the `Dockerfile`, commit and push. Your container is updated within about 5 minutes after the build finishes. This restarts the container, so save your work and don't push while long jobs are running.
+- **Trying things out:** `pip install` and `sudo apt install` work immediately. Add the packages to your repository afterwards so they survive the next update.
+- **PyTorch:** use the *PyTorch* option in the Container Builder. The default `pip install torch` installs a CUDA 13 build that can't use the GPUs on RFBerlin-HPC01.
+- **Long jobs:** run them inside `tmux` or `screen`, or with `nohup`, so they keep running when you disconnect.
+- **Be fair with GPUs:** they are shared. Free GPU memory when you're done, and say in your request if you need a GPU exclusively.
 
-and navigate to account settings
+## Troubleshooting
 
-![alt text](image-5.png)
+| Problem | Fix |
+|---|---|
+| Actions build fails at *docker/login-action* | The `DOCKER_USERNAME` / `DOCKER_PASSWORD` secrets are missing or wrong. |
+| `Permission denied (publickey)` | The key in `authorized_keys` doesn't match the key on your computer. Fix it and push. The container updates within ~5 minutes. |
+| `torch.cuda.is_available()` is `False` | Use the *Python + CUDA* environment with the *PyTorch* option, and make sure you requested a GPU. |
+| My changes didn't arrive | Check that the Actions run is green, then wait ~5 minutes and reconnect. |
 
-In your account settings navigate to personal accestoken, and click generate new token
-
-![alt text](image-6.png) 
-
-in the token setting make sure that your token has read write priviliges
-
-![alt text](image-7.png)
-
-Copy your token key to use in github
-
- ## Step 9 Update Secrets in github project
-Navigate back to your  github project and click settings
-
-![alt text](image-8.png)
-
-and scrole down to Secrets and variables and click Actions
-
-![alt text](image-9.png)
-
-create two new screts like so :
-
-![alt text](image-10.png)
-
-with DOCKER_PASSWORD being your token from docker and DOCKER_USERNAME 
-
- ## Step 10 Create Docker container - GithubActions
-
-Under actions in github, there should now be a container building and uploading to your docker repo
-
- ## Step 11 Update Docker compose file
- Contact leh@danofficeit.com for nows
-
- 
+Questions: open an [issue](https://github.com/RFBerlin/guide/issues) or contact leh@danofficeit.com.
