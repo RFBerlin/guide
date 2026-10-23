@@ -1,0 +1,66 @@
+name: Container request
+description: Ask for your research container to be started on an RF Berlin HPC server.
+title: "Container request: "
+labels: ["container-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Easiest: fill in the [Container Builder](https://rfberlin.github.io/guide/), which opens this form for you.
+        Before requesting, make sure your image has been built and pushed to Docker Hub (green check in your repository's Actions tab).
+  - type: input
+    id: name
+    attributes:
+      label: Container name
+      description: Lowercase letters, digits, - or _ (2-40 characters).
+      placeholder: jdoe-thesis
+    validations:
+      required: true
+  - type: input
+    id: image
+    attributes:
+      label: Docker Hub image
+      description: username/image as pushed by your GitHub Actions workflow.
+      placeholder: jdoe/jdoe-thesis
+    validations:
+      required: true
+  - type: dropdown
+    id: server
+    attributes:
+      label: Server
+      options:
+        - RFBerlin-HPC01
+        - dsserver02
+    validations:
+      required: true
+  - type: dropdown
+    id: gpu
+    attributes:
+      label: GPU
+      description: "'All GPUs' is two GPUs on RFBerlin-HPC01 and one on dsserver02."
+      options:
+        - No GPU
+        - One GPU
+        - All GPUs
+    validations:
+      required: true
+  - type: dropdown
+    id: memory
+    attributes:
+      label: Memory limit
+      options:
+        - No limit
+        - 8g
+        - 16g
+        - 32g
+        - 64g
+        - 128g
+        - 256g
+        - 512g
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: Project, supervisor, how long you need it, special requirements.
